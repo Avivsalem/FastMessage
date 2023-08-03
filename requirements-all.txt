@@ -1,0 +1,9 @@
+
+# This file is generated at the ci/cd while building the package
+flake8
+lxml
+mock
+mypy
+pytest
+pytest-cov
+tox

@@ -1,0 +1,61 @@
+[build-system]
+requires = [
+    "setuptools",
+    "wheel"
+]
+build-backend = "backend"
+backend-path = ["_custom_build"]
+
+[project]
+name = "fastmessage"
+requires-python = '>=3.7,<3.12'
+readme = "README.md"
+license = { text = "MIT" }
+classifiers = [
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 3.7',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'License :: OSI Approved :: MIT License',
+]
+dynamic = [
+    "dependencies",
+    "version",
+    "optional-dependencies"
+]
+
+[project.urls]
+Homepage = "https://github.com/Avivsalem/FastMessage/"
+Documentation = "https://fastmessage.readthedocs.io/"
+
+[[project.authors]]
+name = "Aviv Salem"
+email = "avivsalem@gmail.com"
+
+[[project.maintainers]]
+name = "Aviv Salem"
+email = "avivsalem@gmail.com"
+
+[tool.setuptools]
+platforms = [
+    "win32",
+    "linux"
+]
+
+[tool.setuptools.packages.find]
+include = ['fastmessage', 'fastmessage.*']
+
+[tool.setuptools.dynamic]
+dependencies = { file = "requirements.txt" }
+version = { file = "VERSION" }
+
+
+[tool.setuptools.dynamic.optional-dependencies]
+dev = { file = "requirements-dev.txt" }
+all = { file = "requirements-all.txt" }
+
+
+
+
