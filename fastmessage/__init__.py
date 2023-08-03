@@ -1,12 +1,15 @@
-from .fastmessage_handler import (
-    FastMessage,
-    FastMessageOutput,
-    InputDeviceName,
+from .exceptions import (
     FastMessageException,
     SpecialDefaultValueException,
     MissingCallbackException,
     DuplicateCallbackException,
     UnnamedCallableException,
-    MultipleReturnValues,
     NotAllowedParamKindException,
+
+)
+from .fastmessage_handler import (
+    FastMessage,
+    FastMessageOutput,
+    InputDeviceName,
+    MultipleReturnValues,
 )

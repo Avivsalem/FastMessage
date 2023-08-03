@@ -4,38 +4,16 @@ import logging
 from dataclasses import dataclass
 from typing import Optional, Callable, Dict, List, Any, TypeVar, Union
 
+from pydantic import BaseModel, parse_raw_as, create_model, ValidationError, Extra
+from pydantic.config import get_config
+from pydantic.typing import get_all_type_hints
+
+from fastmessage import NotAllowedParamKindException, SpecialDefaultValueException, UnnamedCallableException, \
+    DuplicateCallbackException, MissingCallbackException
 from messageflux import InputDevice
 from messageflux.iodevices.base import InputDeviceManager, OutputDeviceManager
 from messageflux.iodevices.base.common import MessageBundle, Message
 from messageflux.pipeline_service import PipelineHandlerBase, PipelineResult, PipelineService
-
-from pydantic.typing import get_all_type_hints
-from pydantic import BaseModel, parse_raw_as, create_model, ValidationError, Extra
-from pydantic.config import get_config
-
-
-class FastMessageException(Exception):
-    pass
-
-
-class DuplicateCallbackException(FastMessageException):
-    pass
-
-
-class NotAllowedParamKindException(FastMessageException):
-    pass
-
-
-class MissingCallbackException(FastMessageException):
-    pass
-
-
-class SpecialDefaultValueException(FastMessageException):
-    pass
-
-
-class UnnamedCallableException(FastMessageException):
-    pass
 
 
 class InputDeviceName(str):
