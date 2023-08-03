@@ -54,8 +54,6 @@ jobs:
           flake8 fastmessage tests -v
 
       - name: Run Tests
-        env:
-          RABBITMQ_PASSWORD: ${{ secrets.RABBITMQ_PASSWORD }}
         run: |
           pip install pytest pytest-cov
           pytest --cov=./fastmessage --cov-report term-missing --cov-report=html:./reports/coverage/html_results --cov-report xml:./reports/coverage/coverage-results.xml --junitxml=./reports/test-results.xml tests
