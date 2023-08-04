@@ -5,7 +5,7 @@
 [![last commit](https://badgen.net/github/last-commit/Avivsalem/FastMessage/main)](https://github.com/Avivsalem/FastMessage/commit/main)
 [![tests](https://github.com/AvivSalem/FastMessage/actions/workflows/tests.yml/badge.svg)](https://github.com/AvivSalem/FastMessage/actions/workflows/tests.yml?query=branch%3Amain)
 [![Documentation Status](https://readthedocs.org/projects/fastmessage/badge/?version=latest)](https://fastmessage.readthedocs.io/en/latest/?badge=latest)
-[![pypi version](https://badgen.net/pypi/v/FastMessage)](https://pypi.org/project/fastmessage/)
+[![pypi version](https://badgen.net/pypi/v/fastmessage)](https://pypi.org/project/fastmessage/)
 [![python compatibility](https://badgen.net/pypi/python/FastMessage)](https://pypi.org/project/fastmessage/)
 [![downloads](https://img.shields.io/pypi/dm/fastmessage)](https://pypi.org/project/fastmessage/)
 
