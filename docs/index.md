@@ -105,8 +105,8 @@ Notice that arguments annotated with these types MUST NOT have default values (S
 ```python
 from pydantic import BaseModel
 
-from fastmessage import FastMessage,InputDeviceName, Message, MessageBundle
-
+from fastmessage import FastMessage,InputDeviceName
+from messageflux.iodevices.base import Message, MessageBundle
 fm = FastMessage()
 
 
