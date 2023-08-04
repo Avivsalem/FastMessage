@@ -22,3 +22,63 @@ Python 3.7+
 ```console
 $ pip install fastmessage
 ```
+
+## Examples
+
+```python
+from fastmessage import FastMessage
+from messageflux.iodevices.rabbitmq import RabbitMQInputDeviceManager, RabbitMQOutputDeviceManager
+
+fm = FastMessage()
+
+
+@fm.map(output_device='next_year')  # this sends its outputs to 'next_year' method
+def hello(name: str, birthYear: int):
+    age = 2023 - birthYear
+    print(f'Hello {name}. your age is {age}')
+    return dict(age=age)
+
+
+@fm.map()
+def next_year(age: int):
+    print(f'next year you will be {age + 1}')
+
+
+if __name__ == "__main__":
+    input_device_manager = RabbitMQInputDeviceManager(hosts='my.rabbit.host',
+                                                      user='username',
+                                                      password='password')
+
+    output_device_manager = RabbitMQOutputDeviceManager(hosts='my.rabbit.host',
+                                                        user='username',
+                                                        password='password')
+    
+    service = fm.create_service(input_device_manager=input_device_manager,
+                                output_device_manager=output_device_manager)    
+    service.start()  # this runs the PipelineService and blocks
+```
+
+This example shows two methods: ```hello``` and ```next_year```, each listening on its own queue 
+(with the same name)
+
+the ```hello``` method is decorated with ```output_device='next_year'``` which means its output is directed to the 
+```next_year``` device (and the corrosponding method)
+
+the ```__main__``` creates an input and output device managers (```RabbitMQ``` in this case), and starts the service 
+with these devices.
+
+every message that is sent to the ```hello``` queue should have the following format:
+```json
+{
+  "name": "john",
+  "birthYear": 1999
+}
+```
+
+in that case the process will print (in 2023...):
+```
+Hello john. your age is 24
+next year you will be 25
+```
+
+
