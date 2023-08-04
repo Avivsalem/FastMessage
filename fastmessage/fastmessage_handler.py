@@ -2,8 +2,9 @@ import inspect
 import json
 import logging
 from dataclasses import dataclass
-from typing import Optional, Callable, Dict, List, Any, TypeVar, Union
+from typing import Optional, Callable, Dict, List, Any, TypeVar, Union, Iterable, Generator
 
+import itertools
 from pydantic import BaseModel, parse_raw_as, create_model, ValidationError, Extra
 from pydantic.config import get_config
 from pydantic.typing import get_all_type_hints
@@ -107,7 +108,7 @@ class _CallbackWrapper:
 
     def __call__(self,
                  input_device: InputDevice,
-                 message_bundle: MessageBundle) -> Optional[Union[PipelineResult, List[PipelineResult]]]:
+                 message_bundle: MessageBundle) -> Optional[Union[PipelineResult, Iterable[PipelineResult]]]:
         kwargs: Dict[str, Any] = {}
         for param_name, param_info in self._special_params.items():
             if param_info.annotation is InputDeviceName:
@@ -128,15 +129,21 @@ class _CallbackWrapper:
         return self._get_pipeline_results(value=callback_return,
                                           default_output_device=self._output_device)
 
-    def _get_pipeline_results(self, value: Any, default_output_device: Optional[str]) -> List[PipelineResult]:
+    def _get_pipeline_results(self,
+                              value: Any,
+                              default_output_device: Optional[str]) -> Iterable[PipelineResult]:
         results = []
-        if isinstance(value, MultipleReturnValues):
-            for item in value:
-                results.extend(self._get_pipeline_results(value=item,
-                                                          default_output_device=default_output_device))
+        if isinstance(value, (MultipleReturnValues, Generator)):
+            results = itertools.chain(results,
+                                      itertools.chain.from_iterable(
+                                          map(lambda item: self._get_pipeline_results(item,
+                                                                                      default_output_device),
+                                              value)
+                                      ))
         elif isinstance(value, FastMessageOutput):
-            results.extend(self._get_pipeline_results(value=value.value,
-                                                      default_output_device=value.output_device))
+            results = itertools.chain(results,
+                                      self._get_pipeline_results(value=value.value,
+                                                                 default_output_device=value.output_device))
         else:
             pipeline_result = self._get_single_pipeline_result(value=value,
                                                                output_device=default_output_device)
