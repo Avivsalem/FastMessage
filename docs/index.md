@@ -24,7 +24,7 @@ from fastmessage import FastMessage
 fm = FastMessage()
 
 
-@fm.map(input_device='some_queue')
+@fm.map()
 def do_something(x: int, y: str):
     pass  # do something with x and y
 
@@ -34,7 +34,7 @@ class SomeModel(BaseModel):
     y: str
 
 
-@fm.map(input_device='some_other_queue', output_device='some_output_queue')
+@fm.map(output_device='some_output_queue')
 def do_something_else(m: SomeModel, a: int):
     return "some_value"  # do somthing with m and a
 
@@ -105,8 +105,8 @@ Notice that arguments annotated with these types MUST NOT have default values (S
 ```python
 from pydantic import BaseModel
 
-from fastmessage import FastMessage,InputDeviceName, Message, MessageBundle
-
+from fastmessage import FastMessage,InputDeviceName
+from messageflux.iodevices.base import Message, MessageBundle
 fm = FastMessage()
 
 
