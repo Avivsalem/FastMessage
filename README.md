@@ -48,7 +48,6 @@ pip install fastmessage
 
 - Create a file main.py with:
 
-
 ```python
 from pydantic import BaseModel
 
@@ -64,9 +63,10 @@ class SomeModel(BaseModel):
     x: int
     y: str
 
-@fm.map(output_device='some_output_queue')
+@fm.map(output_device='do_somthing') # send the output to the `do_something` handler
 def do_something_else(m: SomeModel, a: int):
-    return "some_value"  # do somthing with m and a
+    # do somthing with m and a
+    return { "x": a, "y": m.y } 
 
 ```
 
