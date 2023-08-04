@@ -6,13 +6,12 @@ from typing import Optional, List
 import pytest
 from pydantic import BaseModel, ValidationError
 
+from fastmessage import FastMessage, MissingCallbackException, DuplicateCallbackException, \
+    InputDeviceName, SpecialDefaultValueException, NotAllowedParamKindException, MultipleReturnValues, FastMessageOutput
 from messageflux import ReadResult
 from messageflux.iodevices.base import InputDevice
 from messageflux.iodevices.base.common import MessageBundle, Message
 from messageflux.pipeline_service import PipelineResult
-
-from fastmessage import FastMessage, MissingCallbackException, DuplicateCallbackException, \
-    InputDeviceName, SpecialDefaultValueException, NotAllowedParamKindException, MultipleReturnValues, FastMessageOutput
 
 
 class FakeInputDevice(InputDevice):
@@ -209,7 +208,7 @@ def test_list_multiple_result():
                                                              headers={'test': 'mtest'}),
                                              device_headers={'test': 'btest'}))
     assert result is not None
-    assert isinstance(result, List)
+    result = list(result)
     assert len(result) == 3
     assert result[0].message_bundle.message.bytes == b'1'
     assert result[1].message_bundle.message.bytes == b'2'
@@ -234,7 +233,7 @@ def test_custom_output_device_result():
                                                              headers={'test': 'mtest'}),
                                              device_headers={'test': 'btest'}))
     assert result is not None
-    assert isinstance(result, List)
+    result = list(result)
     assert len(result) == 4
     assert result[0].message_bundle.message.bytes == b'1'
     assert result[0].output_device_name == "test1"
@@ -263,7 +262,7 @@ def test_no_output_device():
                                                              headers={'test': 'mtest'}),
                                              device_headers={'test': 'btest'}))
     assert result is not None
-    assert isinstance(result, List)
+    result = list(result)
     assert len(result) == 3
     assert result[0].message_bundle.message.bytes == b'1'
     assert result[0].output_device_name == "test1"
@@ -271,5 +270,52 @@ def test_no_output_device():
     assert result[1].output_device_name == "test2"
     assert result[2].message_bundle.message.bytes == b'3'
     assert result[2].output_device_name == "test3"
+
+
+def test_return_generator():
+    default_output_device = str(uuid.uuid4()).replace('-', '')
+    fm: FastMessage = FastMessage(default_output_device=default_output_device)
+
+    @fm.map(input_device='input1')
+    def do_something1(m: Message, b: MessageBundle, d: InputDeviceName, y: int):
+        yield 1
+        yield 2
+        yield 3
+
+    result = fm.handle_message(FakeInputDevice('input1'),
+                               MessageBundle(message=Message(data=b'{"y": 10}',
+                                                             headers={'test': 'mtest'}),
+                                             device_headers={'test': 'btest'}))
+    assert result is not None
+    result = list(result)
+    assert len(result) == 3
+    assert result[0].message_bundle.message.bytes == b'1'
+    assert result[1].message_bundle.message.bytes == b'2'
+    assert result[2].message_bundle.message.bytes == b'3'
+
+
+def test_return_complex():
+    default_output_device = str(uuid.uuid4()).replace('-', '')
+    fm: FastMessage = FastMessage(default_output_device=default_output_device)
+
+    @fm.map(input_device='input1')
+    def do_something1(m: Message, b: MessageBundle, d: InputDeviceName, y: int):
+        yield MultipleReturnValues([1, 2, 3])
+        yield MultipleReturnValues([4, 5, 6])
+        yield MultipleReturnValues([7, 8, 9])
+
+    result = fm.handle_message(FakeInputDevice('input1'), MessageBundle(message=Message(data=b'{"y": 10}')))
+    assert result is not None
+    result = list(result)
+    assert len(result) == 9
+    assert result[0].message_bundle.message.bytes == b'1'
+    assert result[1].message_bundle.message.bytes == b'2'
+    assert result[2].message_bundle.message.bytes == b'3'
+    assert result[3].message_bundle.message.bytes == b'4'
+    assert result[4].message_bundle.message.bytes == b'5'
+    assert result[5].message_bundle.message.bytes == b'6'
+    assert result[6].message_bundle.message.bytes == b'7'
+    assert result[7].message_bundle.message.bytes == b'8'
+    assert result[8].message_bundle.message.bytes == b'9'
 
 # add tests for no output devices, etc...
