@@ -9,76 +9,97 @@
 [![python compatibility](https://badgen.net/pypi/python/FastMessage)](https://pypi.org/project/fastmessage/)
 [![downloads](https://img.shields.io/pypi/dm/fastmessage)](https://pypi.org/project/fastmessage/)
 
-FastMessage is an easy framework to create PipelineHandlers for [MessageFlux](https://messageflux.readthedocs.io)
 
-You can find the full documentation [here](https://fastmessage.readthedocs.io/)
+FastMessage is a powerful Python framework that empowers you to build message processing services rapidly. Drawing inspiration from the acclaimed FastAPI, FastMessage provides a seamless and efficient platform for developing messaging applications. By leveraging the capabilities of Pydantic, FastMessage ensures robustness and reliability in your message processing workflows.
+
+Whether you're working on real-time chat applications, data streaming services, or any other message-driven systems, FastMessage simplifies the development process and allows you to focus on crafting efficient and feature-rich applications.
+
+## Key Features
+
+- **Rapid Development**: FastMessage streamlines the development process, enabling you to create message processing services quickly and efficiently.
+
+- **Inspired by FastAPI**: Drawing inspiration from the highly regarded FastAPI framework, FastMessage follows its design principles to offer a familiar development experience.
+
+- **Pydantic Integration**: FastMessage seamlessly integrates with Pydantic, enhancing the validation and serialization of messages for improved reliability.
+
+- **Flexible Routing**: Define message routes effortlessly and manage message flows with ease.
+
+- **Extensive Documentation**: FastMessage comes with comprehensive documentation and examples to guide you through the framework's functionalities.
+
+- **Scalable Architecture**: Built with scalability in mind, FastMessage supports the growth of your message processing services as your application demands increase.
 
 ## Requirements
 
-Python 3.7+
+Before you get started with FastMessage, make sure you have the following requirements in place:
+
+- Python 3.7+
+- Pip (Python package installer)
 
 ## Installation
 
-```console
-$ pip install fastmessage
+You can install FastMessage using pip:
+
+```bash
+pip install fastmessage
 ```
 
-## Examples
+## Example
+### Create it
+
+- Create a file main.py with:
 
 ```python
+from pydantic import BaseModel
+
 from fastmessage import FastMessage
-from messageflux.iodevices.rabbitmq import RabbitMQInputDeviceManager, RabbitMQOutputDeviceManager
 
 fm = FastMessage()
 
-
-@fm.map(output_device='next_year')  # this sends its outputs to 'next_year' method
-def hello(name: str, birthYear: int):
-    age = 2023 - birthYear
-    print(f'Hello {name}. your age is {age}')
-    return dict(age=age)
-
-
 @fm.map()
-def next_year(age: int):
-    print(f'next year you will be {age + 1}')
+def do_something(x: int, y: str):
+    pass  # do something with x and y
 
+class SomeModel(BaseModel):
+    x: int
+    y: str
 
-if __name__ == "__main__":
-    input_device_manager = RabbitMQInputDeviceManager(hosts='my.rabbit.host',
-                                                      user='username',
-                                                      password='password')
+@fm.map(output_device='do_somthing') # send the output to the `do_something` handler
+def do_something_else(m: SomeModel, a: int):
+    # do somthing with m and a
+    return { "x": a, "y": m.y } 
 
-    output_device_manager = RabbitMQOutputDeviceManager(hosts='my.rabbit.host',
-                                                        user='username',
-                                                        password='password')
-    
-    service = fm.create_service(input_device_manager=input_device_manager,
-                                output_device_manager=output_device_manager)    
-    service.start()  # this runs the PipelineService and blocks
 ```
 
-This example shows two methods: ```hello``` and ```next_year```, each listening on its own queue 
-(with the same name)
+## Run it
 
-the ```hello``` method is decorated with ```output_device='next_year'``` which means its output is directed to the 
-```next_year``` device (and the corrosponding method)
+Run the message processing service with:
 
-the ```__main__``` creates an input and output device managers (```RabbitMQ``` in this case), and starts the service 
-with these devices.
 
-every message that is sent to the ```hello``` queue should have the following format:
-```json
-{
-  "name": "john",
-  "birthYear": 1999
-}
+```bash
+$ messageflux main:fm --reload
+
+INFO:     MessageFlux service loaded with default configuration. (Press CTRL+C to quit)
+INFO:     Input Device Manager: FileInputDeviceManager (Base Path: /temp)
+INFO:     Output Device Manager: ConsoleOutputDeviceManager
+INFO:     Started reloader process [28720]
+INFO:     Started server process [28722]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+
 ```
 
-in that case the process will print (in 2023...):
-```
-Hello john. your age is 24
-next year you will be 25
-```
+## Check it
+
+TODO
 
 
+For more detailed information and advanced usage, refer to our [documentation](https://fastmessage.readthedocs.io/en/latest).
+
+
+## License
+
+FastMessage is released under the [MIT License](LICENSE).
+
+---
+
+Experience the speed and simplicity of FastMessage for your message processing needs. Get started today and build efficient and robust message-driven applications in no time!`~
