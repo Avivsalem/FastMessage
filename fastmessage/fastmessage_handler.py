@@ -1,8 +1,10 @@
+import asyncio
 import inspect
 import json
 import logging
+from asyncio import BaseEventLoop
 from dataclasses import dataclass
-from typing import Optional, Callable, Dict, List, Any, TypeVar, Union, Iterable, Generator
+from typing import Optional, Callable, Dict, List, Any, Union, Iterable, Generator, Awaitable, AsyncGenerator
 
 import itertools
 from pydantic import BaseModel, parse_raw_as, create_model, ValidationError, Extra
@@ -45,7 +47,7 @@ class _DefaultClass(str):
 
 
 _DEFAULT = _DefaultClass()
-_CALLABLE_TYPE = TypeVar('_CALLABLE_TYPE', bound=Callable[..., Any])
+_CALLABLE_TYPE = Union[Callable[..., Any], Awaitable]
 
 
 @dataclass
@@ -58,7 +60,7 @@ _logger = logging.getLogger(__name__)
 
 
 class _CallbackWrapper:
-    def __init__(self, callback: Callable,
+    def __init__(self, callback: _CALLABLE_TYPE,
                  input_device: str,
                  output_device: Optional[str] = None):
         self._callback = callback
@@ -66,6 +68,10 @@ class _CallbackWrapper:
         self._output_device = output_device
         self._special_params: Dict[str, _ParamInfo] = dict()
         self._params: Dict[str, _ParamInfo] = dict()
+        self._event_loop_cache: Optional[BaseEventLoop] = None
+        self._is_async = inspect.iscoroutinefunction(callback)
+        self._is_async_gen = inspect.isasyncgenfunction(callback)
+
         type_hints = get_all_type_hints(self._callback)
         extra = Extra.ignore
         for param_name, param in inspect.signature(self._callback).parameters.items():
@@ -103,8 +109,31 @@ class _CallbackWrapper:
                                        __config__=get_config(dict(extra=extra)),
                                        **model_params)
 
+    def _event_loop(self) -> BaseEventLoop:
+        if self._event_loop_cache is None:
+            self._event_loop_cache = asyncio.new_event_loop()  # TODO: when to we close the loop?
+
+        return self._event_loop_cache
+
     def _get_model_name(self) -> str:
         return f"model_{self._callback.__name__}_{self._input_device}"
+
+    @staticmethod
+    def _iter_over_async(async_generator: AsyncGenerator, loop: BaseEventLoop):
+        ait = async_generator.__aiter__()
+
+        async def get_next():
+            try:
+                obj = await ait.__anext__()
+                return False, obj
+            except StopAsyncIteration:
+                return True, None
+
+        while True:
+            done, obj = loop.run_until_complete(get_next())
+            if done:
+                break
+            yield obj
 
     def __call__(self,
                  input_device: InputDevice,
@@ -121,8 +150,12 @@ class _CallbackWrapper:
         if self._model:
             model = parse_raw_as(self._model, message_bundle.message.bytes)
             kwargs.update(dict(model))
-
-        callback_return = self._callback(**kwargs)
+        if self._is_async:
+            callback_return = self._event_loop().run_until_complete(self._callback(**kwargs))
+        elif self._is_async_gen:
+            callback_return = self._iter_over_async(self._callback(**kwargs), self._event_loop())
+        else:
+            callback_return = self._callback(**kwargs)
         if callback_return is None:
             return None
 
@@ -175,7 +208,7 @@ class FastMessage(PipelineHandlerBase):
                      Optional[Union[PipelineResult, List[PipelineResult]]]]] = None):
         """
 
-        :param default_output_device: an optional default output device to send callaback results to,
+        :param default_output_device: an optional default output device to send callback results to,
         unless mapped otherwise
         :param validation_error_handler: an optional handler that will be called on validation errors,
         in order to give the user a chance to handle them gracefully
@@ -202,14 +235,14 @@ class FastMessage(PipelineHandlerBase):
         """
         self._validation_error_handler = handler
 
-    def _get_callable_name(self, callback: Callable) -> str:
+    def _get_callable_name(self, callback: _CALLABLE_TYPE) -> str:
         try:
             return getattr(callback, "__name__")
         except AttributeError as ex:
             raise UnnamedCallableException(f"Callable {repr(callback)} doesn't have a name") from ex
 
     def register_callback(self,
-                          callback: Callable,
+                          callback: _CALLABLE_TYPE,
                           input_device: str = _DEFAULT,
                           output_device: Optional[str] = _DEFAULT):
         """
