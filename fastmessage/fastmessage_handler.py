@@ -47,7 +47,6 @@ class _DefaultClass(str):
 
 
 _DEFAULT = _DefaultClass()
-# _CALLABLE_TYPE = Union[Callable[..., Any], Coroutine, AsyncGenerator]
 _CALLABLE_TYPE = TypeVar('_CALLABLE_TYPE', bound=Callable[..., Any])
 
 
