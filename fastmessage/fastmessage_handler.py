@@ -2,9 +2,9 @@ import asyncio
 import inspect
 import json
 import logging
-from asyncio import BaseEventLoop
+from asyncio import AbstractEventLoop
 from dataclasses import dataclass
-from typing import Optional, Callable, Dict, List, Any, Union, Iterable, Generator, Awaitable, AsyncGenerator
+from typing import Optional, Callable, Dict, List, Any, Union, Iterable, Generator, AsyncGenerator, TypeVar
 
 import itertools
 from pydantic import BaseModel, parse_raw_as, create_model, ValidationError, Extra
@@ -47,7 +47,8 @@ class _DefaultClass(str):
 
 
 _DEFAULT = _DefaultClass()
-_CALLABLE_TYPE = Union[Callable[..., Any], Awaitable]
+# _CALLABLE_TYPE = Union[Callable[..., Any], Coroutine, AsyncGenerator]
+_CALLABLE_TYPE = TypeVar('_CALLABLE_TYPE', bound=Callable[..., Any])
 
 
 @dataclass
@@ -59,6 +60,13 @@ class _ParamInfo:
 _logger = logging.getLogger(__name__)
 
 
+def _get_callable_name(callback: _CALLABLE_TYPE) -> str:
+    try:
+        return getattr(callback, "__name__")
+    except AttributeError as ex:
+        raise UnnamedCallableException(f"Callable {repr(callback)} doesn't have a name") from ex
+
+
 class _CallbackWrapper:
     def __init__(self, callback: _CALLABLE_TYPE,
                  input_device: str,
@@ -68,7 +76,7 @@ class _CallbackWrapper:
         self._output_device = output_device
         self._special_params: Dict[str, _ParamInfo] = dict()
         self._params: Dict[str, _ParamInfo] = dict()
-        self._event_loop_cache: Optional[BaseEventLoop] = None
+        self._event_loop_cache: Optional[AbstractEventLoop] = None
         self._is_async = inspect.iscoroutinefunction(callback)
         self._is_async_gen = inspect.isasyncgenfunction(callback)
 
@@ -109,17 +117,18 @@ class _CallbackWrapper:
                                        __config__=get_config(dict(extra=extra)),
                                        **model_params)
 
-    def _event_loop(self) -> BaseEventLoop:
+    def _event_loop(self) -> AbstractEventLoop:
         if self._event_loop_cache is None:
             self._event_loop_cache = asyncio.new_event_loop()  # TODO: when to we close the loop?
 
         return self._event_loop_cache
 
     def _get_model_name(self) -> str:
-        return f"model_{self._callback.__name__}_{self._input_device}"
+        callable_name = _get_callable_name(self._callback)
+        return f"model_{callable_name}_{self._input_device}"
 
     @staticmethod
-    def _iter_over_async(async_generator: AsyncGenerator, loop: BaseEventLoop):
+    def _iter_over_async(async_generator: AsyncGenerator, loop: AbstractEventLoop):
         ait = async_generator.__aiter__()
 
         async def get_next():
@@ -235,12 +244,6 @@ class FastMessage(PipelineHandlerBase):
         """
         self._validation_error_handler = handler
 
-    def _get_callable_name(self, callback: _CALLABLE_TYPE) -> str:
-        try:
-            return getattr(callback, "__name__")
-        except AttributeError as ex:
-            raise UnnamedCallableException(f"Callable {repr(callback)} doesn't have a name") from ex
-
     def register_callback(self,
                           callback: _CALLABLE_TYPE,
                           input_device: str = _DEFAULT,
@@ -255,7 +258,7 @@ class FastMessage(PipelineHandlerBase):
         if callback returns None, no routing will be made even if 'output_device' is not None
         """
         if input_device is _DEFAULT:
-            input_device = self._get_callable_name(callback)
+            input_device = _get_callable_name(callback)
 
         if input_device in self._wrappers:
             raise DuplicateCallbackException(f"Can't register more than one callback on device '{input_device}'")

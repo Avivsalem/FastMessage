@@ -82,6 +82,7 @@ def test_sanity_async():
     json_result = json.loads(result.message_bundle.message.bytes.decode())
     assert json_result['y'] == 'x=1, y=a, z=[1, 2]'
 
+
 def test_root_model():
     fm: FastMessage = FastMessage()
 
@@ -338,6 +339,7 @@ def test_return_async_generator():
     assert result[0].message_bundle.message.bytes == b'1'
     assert result[1].message_bundle.message.bytes == b'2'
     assert result[2].message_bundle.message.bytes == b'3'
+
 
 def test_return_complex():
     default_output_device = str(uuid.uuid4()).replace('-', '')
