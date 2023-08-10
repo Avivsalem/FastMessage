@@ -1,3 +1,8 @@
+from .callable_wrapper import (
+    FastMessageOutput,
+    InputDeviceName,
+    MultipleReturnValues,
+)
 from .exceptions import (
     FastMessageException,
     SpecialDefaultValueException,
@@ -7,9 +12,4 @@ from .exceptions import (
     NotAllowedParamKindException,
 
 )
-from .fastmessage_handler import (
-    FastMessage,
-    FastMessageOutput,
-    InputDeviceName,
-    MultipleReturnValues,
-)
+from .fastmessage_handler import FastMessage
