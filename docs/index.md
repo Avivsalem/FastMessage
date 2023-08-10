@@ -5,7 +5,7 @@ It is an easy way to create a ```PipelineHandlerBase``` and put it in a ```Pipel
 
 ## Limitations
 
-With ```FastMessage``` you can register only a single callback for each input device, 
+With ```FastMessage``` you can register only a single callback for each input device,
 meaning the service will expect a single type (schema) of messages for each input device.
 
 Multiple callbacks can send messages to the same output device.
@@ -21,22 +21,27 @@ from pydantic import BaseModel
 
 from fastmessage import FastMessage
 
-fm = FastMessage()
+fm = FastMessage(default_output_device='output')
 
 
 @fm.map()
 def do_something(x: int, y: str):
-    pass  # do something with x and y
+  pass  # do something with x and y
+
+
+@fm.map()
+async def do_something_async(x: int, y: str):
+  pass  # do something with x and y asynchronously
 
 
 class SomeModel(BaseModel):
-    x: int
-    y: str
+  x: int
+  y: str
 
 
-@fm.map(output_device='some_output_queue')
+@fm.map()
 def do_something_else(m: SomeModel, a: int):
-    return "some_value"  # do somthing with m and a
+  return "some_value"  # do somthing with m and a
 
 ```
 
@@ -68,6 +73,7 @@ service.start()
 ```
 
 ### Root Model
+
 You can use a callback with a single param named ```__root__``` in order to mark it as the root type for the message.
 in that case, the message will not expect the param name, and instead will expect the root model as type
 
@@ -86,32 +92,32 @@ class SomeModel(BaseModel):
 
 @fm.map(input_device='some_other_queue')
 def process_somemodel(__root__: SomeModel):
-    pass # this method will expect messages with the SomeModel schema ({"x":1, "y":"some string"})  
+    pass  # this method will expect messages with the SomeModel schema ({"x":1, "y":"some string"})  
 
 ```
 
-## Special Param Types
+### Special Param Types
 
 There are three special types which you can annotate the arguments for the callback with.
 
-* ```InputDeviceName``` - arguments annotated with this type will receive the name of the input device the message came from. useful for registering the same callback for several input devices
+* ```InputDeviceName``` - arguments annotated with this type will receive the name of the input device the message came
+  from. useful for registering the same callback for several input devices
 * ```Message``` - arguments annotated with this type will receive the raw message which came from the device
 * ```MessageBundle``` - arguments annotated with this type will receive the complete MessageBundle (with device headers)
 
 Notice that arguments annotated with these types MUST NOT have default values (Since they always have values).
 
-### Example
-
 ```python
 from pydantic import BaseModel
 
-from fastmessage import FastMessage,InputDeviceName
+from fastmessage import FastMessage, InputDeviceName
 from messageflux.iodevices.base import Message, MessageBundle
+
 fm = FastMessage()
 
 
 @fm.map(input_device='some_queue')
-def do_something(i: InputDeviceName, m: Message, mb:MessageBundle, x:int):
+def do_something(i: InputDeviceName, m: Message, mb: MessageBundle, x: int):
     # i will be 'some_queue'
     # m will be the message that arrived
     # mb will be the MessageBundle that arrived
@@ -119,33 +125,40 @@ def do_something(i: InputDeviceName, m: Message, mb:MessageBundle, x:int):
     pass  # do something
 ```
 
-## Returning Multiple Results
+### Returning Multiple Results
 
 You can make the function return multiple results, where each one is serialized as its own message to the output queue.
 
-All you have to do, is return a ```MultipleReturnValues``` (which is a ```List```), and each item will be serialized as its own output message
+All you have to do, is return a ```MultipleReturnValues``` (which is a ```List```), and each item will be serialized as
+its own output message
 
-### Example
+you can also use ```yield``` to return results as a generator (each result will be sent to output device before
+continuing the iteration)
 
 ```python
 from fastmessage import FastMessage, MultipleReturnValues
 
-fm = FastMessage()
+fm = FastMessage(default_output_device="output_queue")
 
 
-@fm.map(input_device='some_queue', output_device='some_other_queue')
+@fm.map()
 def do_something(x: int):
     return MultipleReturnValues([1, 'b', 3])  # will create 3 output messages, one for each item
+
+
+@fm.map()
+def do_something_generator(x: int):  # this method does the same as the previous, but in a generator fashion
+    yield 1
+    yield 'b'
+    yield 3
 ```
 
-
-## Returning Result to a different output device
+### Returning Result to a different output device
 
 You can make the function return a result to a different output device then the one in the decorator
 
-You do this by using the ```FastMessageOutput``` class, and giving it the value to send, and the output device name to send to
-
-### Example
+You do this by using the ```FastMessageOutput``` class, and giving it the value to send, and the output device name to
+send to
 
 ```python
 from fastmessage import FastMessage, FastMessageOutput
@@ -155,6 +168,7 @@ fm = FastMessage()
 
 @fm.map(input_device='some_queue', output_device='default_output_device')
 def do_something(x: int):
-    return FastMessageOutput(value=1, output_device='other_output_device') # this will send the value 1 to 'other_output_device' instead of the default
+    return FastMessageOutput(value=1,
+                             output_device='other_output_device')  # this will send the value 1 to 'other_output_device' instead of the default
 ```
 
