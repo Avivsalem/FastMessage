@@ -1,28 +1,16 @@
 import json
-import threading
 import uuid
-from typing import Optional, List
+from typing import List
 
 import pytest
 from pydantic import BaseModel, ValidationError
 
 from fastmessage import FastMessage, MissingCallbackException, DuplicateCallbackException, \
-    InputDeviceName, SpecialDefaultValueException, NotAllowedParamKindException, MultipleReturnValues, FastMessageOutput
-from messageflux import ReadResult
+    InputDeviceName, SpecialDefaultValueException, NotAllowedParamKindException, MultipleReturnValues, CustomOutput
 from messageflux.iodevices.base import InputDevice
 from messageflux.iodevices.base.common import MessageBundle, Message
 from messageflux.pipeline_service import PipelineResult
-
-
-class FakeInputDevice(InputDevice):
-    def _read_message(self,
-                      cancellation_token: threading.Event,
-                      timeout: Optional[float] = None,
-                      with_transaction: bool = True) -> Optional['ReadResult']:
-        return None
-
-    def __init__(self, name: str):
-        super().__init__(None, name)
+from tests.common import FakeInputDevice
 
 
 class SomeModel(BaseModel):
@@ -58,29 +46,21 @@ def test_sanity():
     assert json_result['y'] == 'x=1, y=a, z=[1, 2]'
 
 
-def test_sanity_async():
+def test_empty_method():
     default_output_device = str(uuid.uuid4()).replace('-', '')
     fm: FastMessage = FastMessage(default_output_device=default_output_device)
 
     @fm.map()
-    async def do_something1(x: SomeModel, y: str, z: List[int] = None):
-        return SomeOtherModel(y=f'x={x.x}, y={y}, z={z}')
+    def do_something():
+        return SomeOtherModel(y='x=1, y=2, z=3')
 
-    result = fm.handle_message(FakeInputDevice('do_something1'),
-                               MessageBundle(Message(b'{"x": {"x":1}, "y": "a", "F":3}')))
+    result = fm.handle_message(FakeInputDevice('do_something'),
+                               MessageBundle(Message(b'{}')))
     assert result is not None
     result = result[0]
     assert result.output_device_name == default_output_device
     json_result = json.loads(result.message_bundle.message.bytes.decode())
-    assert json_result['y'] == 'x=1, y=a, z=None'
-
-    result = fm.handle_message(FakeInputDevice('do_something1'),
-                               MessageBundle(Message(b'{"x": {"x":1}, "y": "a", "z":[1,2]}')))
-    assert result is not None
-    result = result[0]
-    assert result.output_device_name == default_output_device
-    json_result = json.loads(result.message_bundle.message.bytes.decode())
-    assert json_result['y'] == 'x=1, y=a, z=[1, 2]'
+    assert json_result['y'] == 'x=1, y=2, z=3'
 
 
 def test_root_model():
@@ -247,9 +227,9 @@ def test_custom_output_device_result():
     @fm.map(input_device='input1')
     def do_something1(m: Message, b: MessageBundle, d: InputDeviceName, y: int):
         return MultipleReturnValues([
-            FastMessageOutput(value=1, output_device='test1'),
-            FastMessageOutput(value=2, output_device='test2'),
-            FastMessageOutput(value=3, output_device='test3'),
+            CustomOutput(value=1, output_device='test1'),
+            CustomOutput(value=2, output_device='test2'),
+            CustomOutput(value=3, output_device='test3'),
             4
         ])
 
@@ -276,9 +256,9 @@ def test_no_output_device():
     @fm.map(input_device='input1')
     def do_something1(m: Message, b: MessageBundle, d: InputDeviceName, y: int):
         return MultipleReturnValues([
-            FastMessageOutput(value=1, output_device='test1'),
-            FastMessageOutput(value=2, output_device='test2'),
-            FastMessageOutput(value=3, output_device='test3'),
+            CustomOutput(value=1, output_device='test1'),
+            CustomOutput(value=2, output_device='test2'),
+            CustomOutput(value=3, output_device='test3'),
             4
         ])
 
@@ -303,28 +283,6 @@ def test_return_generator():
 
     @fm.map(input_device='input1')
     def do_something1(m: Message, b: MessageBundle, d: InputDeviceName, y: int):
-        yield 1
-        yield 2
-        yield 3
-
-    result = fm.handle_message(FakeInputDevice('input1'),
-                               MessageBundle(message=Message(data=b'{"y": 10}',
-                                                             headers={'test': 'mtest'}),
-                                             device_headers={'test': 'btest'}))
-    assert result is not None
-    result = list(result)
-    assert len(result) == 3
-    assert result[0].message_bundle.message.bytes == b'1'
-    assert result[1].message_bundle.message.bytes == b'2'
-    assert result[2].message_bundle.message.bytes == b'3'
-
-
-def test_return_async_generator():
-    default_output_device = str(uuid.uuid4()).replace('-', '')
-    fm: FastMessage = FastMessage(default_output_device=default_output_device)
-
-    @fm.map(input_device='input1')
-    async def do_something1(m: Message, b: MessageBundle, d: InputDeviceName, y: int):
         yield 1
         yield 2
         yield 3
