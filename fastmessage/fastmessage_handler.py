@@ -5,7 +5,7 @@ from typing import Optional, Callable, Dict, List, Union, Iterable
 from pydantic import ValidationError
 
 from fastmessage.callable_wrapper import CallableWrapper
-from fastmessage.common import _CALLABLE_TYPE, _get_callable_name
+from fastmessage.common import _CALLABLE_TYPE, get_callable_name
 from fastmessage.exceptions import DuplicateCallbackException, MissingCallbackException
 from messageflux import InputDevice
 from messageflux.iodevices.base import InputDeviceManager, OutputDeviceManager
@@ -36,6 +36,7 @@ class FastMessage(PipelineHandlerBase):
         self._default_output_device = default_output_device
         self._validation_error_handler = validation_error_handler
         self._wrappers: Dict[str, CallableWrapper] = {}
+        self._callable_to_input_device: Dict[Callable, str] = {}
         self._event_loop_cache: Optional[AbstractEventLoop] = None
 
     @property
@@ -80,7 +81,7 @@ class FastMessage(PipelineHandlerBase):
         if callback returns None, no routing will be made even if 'output_device' is not None
         """
         if input_device is _DEFAULT:
-            input_device = _get_callable_name(callback)
+            input_device = get_callable_name(callback)
 
         if input_device in self._wrappers:
             raise DuplicateCallbackException(f"Can't register more than one callback on device '{input_device}'")
@@ -88,10 +89,11 @@ class FastMessage(PipelineHandlerBase):
         if output_device is _DEFAULT:
             output_device = self._default_output_device
 
+        self._callable_to_input_device[callback] = input_device
         self._wrappers[input_device] = CallableWrapper(fastmessage_handler=self,
-                                                       callback=callback,
-                                                       input_device=input_device,
-                                                       output_device=output_device)
+                                                       wrapped_callable=callback,
+                                                       input_device_name=input_device,
+                                                       output_device_name=output_device)
 
     def map(self,
             input_device: str = _DEFAULT,

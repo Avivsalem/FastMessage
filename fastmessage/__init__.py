@@ -1,5 +1,5 @@
-from .callable_wrapper import (
-    FastMessageOutput,
+from .common import (
+    CustomOutput,
     InputDeviceName,
     MultipleReturnValues,
 )
@@ -10,6 +10,8 @@ from .exceptions import (
     DuplicateCallbackException,
     UnnamedCallableException,
     NotAllowedParamKindException,
+    MethodValidationError
 
 )
 from .fastmessage_handler import FastMessage
+from .method_validator import MethodValidator

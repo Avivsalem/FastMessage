@@ -2,6 +2,10 @@ class FastMessageException(Exception):
     pass
 
 
+class MethodValidationError(Exception):
+    pass
+
+
 class DuplicateCallbackException(FastMessageException):
     pass
 
