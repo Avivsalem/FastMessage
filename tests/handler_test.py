@@ -197,7 +197,7 @@ def test_list_single_result():
     assert result is not None
     assert isinstance(result, List)
     assert len(result) == 1
-    assert result[0].message_bundle.message.bytes == b'[1, 2, 3]'
+    assert result[0].message_bundle.message.bytes == b'[1,2,3]'
 
 
 def test_list_multiple_result():

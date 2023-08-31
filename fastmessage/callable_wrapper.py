@@ -1,22 +1,22 @@
 import inspect
-import json
+import itertools
 from asyncio import AbstractEventLoop
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Optional, Dict, Any, Union, Iterable, Generator, AsyncGenerator, TYPE_CHECKING, Callable, Type
+from typing import Optional, Dict, Any, Union, Iterable, Generator, AsyncGenerator, TYPE_CHECKING, Callable, Type, \
+    Literal
 
-import itertools
-from pydantic import BaseModel, create_model, Extra
-from pydantic.config import get_config
-from pydantic.typing import get_all_type_hints
+from messageflux import InputDevice
+from messageflux.iodevices.base.common import MessageBundle, Message
+from messageflux.pipeline_service import PipelineResult
+from pydantic import BaseModel, create_model, Extra, RootModel
+from pydantic._internal._typing_extra import get_function_type_hints
+from pydantic.config import ConfigDict
 
 from fastmessage.common import CustomOutput, InputDeviceName, MultipleReturnValues
 from fastmessage.common import _CALLABLE_TYPE, get_callable_name, _logger
 from fastmessage.exceptions import NotAllowedParamKindException, SpecialDefaultValueException
 from fastmessage.method_validator import MethodValidator
-from messageflux import InputDevice
-from messageflux.iodevices.base.common import MessageBundle, Message
-from messageflux.pipeline_service import PipelineResult
 
 if TYPE_CHECKING:
     from fastmessage.fastmessage_handler import FastMessage
@@ -65,7 +65,7 @@ class CallableWrapper:
     def _analyze_callable(wrapped_callable: _CALLABLE_TYPE) -> _CallableAnalysis:
         params = dict()
         special_params = dict()
-        type_hints = get_all_type_hints(wrapped_callable)
+        type_hints = get_function_type_hints(wrapped_callable)
         has_kwargs = False
         for param_name, param in inspect.signature(wrapped_callable).parameters.items():
             if param.kind in (param.POSITIONAL_ONLY, param.VAR_POSITIONAL):
@@ -110,9 +110,16 @@ class CallableWrapper:
         model_params: Dict[str, Any] = {}
         for param_name, param_info in callable_analysis.params.items():
             model_params[param_name] = (param_info.annotation, param_info.default)
-        extra = Extra.allow if callable_analysis.has_kwargs else Extra.ignore
+        extra: Literal['allow', 'ignore', 'forbid'] = Extra.allow if callable_analysis.has_kwargs else Extra.ignore
+        model: Type[BaseModel]
+        if len(model_params) == 1 and '__root__' in model_params:
+            root_param = model_params['__root__']
+            model_params['__base__'] = RootModel[root_param[0]]  # type: ignore
+            del model_params['__root__']
+        else:
+            model_params['__config__'] = ConfigDict(extra=extra)
+
         model = create_model(model_name,
-                             __config__=get_config(dict(extra=extra)),
                              **model_params)
 
         return model
@@ -181,8 +188,11 @@ class CallableWrapper:
             elif param_info.annotation is MethodValidator:
                 kwargs[param_name] = MethodValidator(self._fastmessage_handler)
 
-        model: BaseModel = self._model.parse_raw(message_bundle.message.bytes)
-        kwargs.update(dict(model))
+        model: BaseModel = self._model.model_validate_json(message_bundle.message.bytes)
+        if isinstance(model, RootModel):
+            kwargs.update({'__root__': model.root})
+        else:
+            kwargs.update(dict(model))
 
         if self._callable_analysis.callable_type == _CallableType.ASYNC:
             callback_return = self._fastmessage_handler.event_loop.run_until_complete(self._callable(**kwargs))
@@ -230,8 +240,8 @@ class CallableWrapper:
         elif isinstance(value, Message):
             output_bundle = MessageBundle(message=value)
         else:
-            json_encoder = getattr(value, '__json_encoder__', BaseModel.__json_encoder__)
-            output_data = json.dumps(value, default=json_encoder).encode()
+            c_class = RootModel[type(value)]  # type: ignore
+            output_data = c_class(value).model_dump_json().encode()
             output_bundle = MessageBundle(message=Message(data=output_data))
 
         return PipelineResult(output_device_name=output_device, message_bundle=output_bundle)

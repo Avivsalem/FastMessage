@@ -1,2 +1,2 @@
 messageflux>=0.5.0,<1
-pydantic>=1.10.1,<2
+pydantic>=2.3,<3
