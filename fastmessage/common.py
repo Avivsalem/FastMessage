@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from typing import Callable, Any, TypeVar
+from typing import Callable, Any, TypeVar, Union
 
 from fastmessage.exceptions import UnnamedCallableException
 
@@ -44,3 +44,12 @@ class CustomOutput:
     """
     output_device: str
     value: Any
+
+
+class OtherMethodOutput:
+    """
+    a result that contains the other method to send the result to
+    """
+    def __init__(self, method: Union[str, Callable], **kwargs):
+        self.method = method
+        self.kwargs = kwargs

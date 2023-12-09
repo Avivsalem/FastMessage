@@ -1,22 +1,22 @@
 import inspect
-import itertools
 from asyncio import AbstractEventLoop
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Optional, Dict, Any, Union, Iterable, Generator, AsyncGenerator, TYPE_CHECKING, Callable, Type, \
     Literal
 
-from messageflux import InputDevice
-from messageflux.iodevices.base.common import MessageBundle, Message
-from messageflux.pipeline_service import PipelineResult
+import itertools
 from pydantic import BaseModel, create_model, Extra, RootModel
 from pydantic._internal._typing_extra import get_function_type_hints
 from pydantic.config import ConfigDict
 
-from fastmessage.common import CustomOutput, InputDeviceName, MultipleReturnValues
+from fastmessage.common import CustomOutput, InputDeviceName, MultipleReturnValues, OtherMethodOutput
 from fastmessage.common import _CALLABLE_TYPE, get_callable_name, _logger
 from fastmessage.exceptions import NotAllowedParamKindException, SpecialDefaultValueException
 from fastmessage.method_validator import MethodValidator
+from messageflux import InputDevice
+from messageflux.iodevices.base.common import MessageBundle, Message
+from messageflux.pipeline_service import PipelineResult
 
 if TYPE_CHECKING:
     from fastmessage.fastmessage_handler import FastMessage
@@ -56,7 +56,7 @@ class CallableWrapper:
         self._callable = wrapped_callable
         self._input_device_name = input_device_name
         self._output_device_name = output_device_name
-
+        self._method_validator = MethodValidator(self._fastmessage_handler)
         self._callable_analysis = self._analyze_callable(self._callable)
         self._model: Type[BaseModel] = self._create_model(model_name=self._get_model_name(),
                                                           callable_analysis=self._callable_analysis)
@@ -186,7 +186,7 @@ class CallableWrapper:
             elif param_info.annotation is Message:
                 kwargs[param_name] = message_bundle.message
             elif param_info.annotation is MethodValidator:
-                kwargs[param_name] = MethodValidator(self._fastmessage_handler)
+                kwargs[param_name] = self._method_validator
 
         model: BaseModel = self._model.model_validate_json(message_bundle.message.bytes)
         if isinstance(model, RootModel):
@@ -221,6 +221,13 @@ class CallableWrapper:
         elif isinstance(value, CustomOutput):
             return self._get_pipeline_results(value=value.value,
                                               default_output_device=value.output_device)
+
+        elif isinstance(value, OtherMethodOutput):
+            custom_output = self._method_validator.validate_and_return(value.method, **value.kwargs)
+
+            return self._get_pipeline_results(value=custom_output.value,
+                                              default_output_device=custom_output.output_device)
+
         else:
             pipeline_result = self._get_single_pipeline_result(value=value,
                                                                output_device=default_output_device)
