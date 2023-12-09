@@ -26,17 +26,17 @@ $ pip install fastmessage
 ## Examples
 
 ```python
-from fastmessage import FastMessage
+from fastmessage import FastMessage, OtherMethodOutput
 from messageflux.iodevices.rabbitmq import RabbitMQInputDeviceManager, RabbitMQOutputDeviceManager
 
 fm = FastMessage()
 
 
-@fm.map(output_device='next_year')  # this sends its outputs to 'next_year' method
+@fm.map()  
 def hello(name: str, birthYear: int):
     age = 2023 - birthYear
     print(f'Hello {name}. your age is {age}')
-    return dict(age=age)
+    return OtherMethodOutput(next_year, age=age) # this sends its outputs to 'next_year' method
 
 
 @fm.map()
