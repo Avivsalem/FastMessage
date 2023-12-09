@@ -61,9 +61,6 @@ if __name__ == "__main__":
 This example shows two methods: ```hello``` and ```next_year```, each listening on its own queue 
 (with the same name)
 
-the ```hello``` method is decorated with ```output_device='next_year'``` which means its output is directed to the 
-```next_year``` device (and the corrosponding method)
-
 the ```__main__``` creates an input and output device managers (```RabbitMQ``` in this case), and starts the service 
 with these devices.
 
