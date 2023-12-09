@@ -2,8 +2,12 @@ import inspect
 from asyncio import AbstractEventLoop
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Optional, Dict, Any, Union, Iterable, Generator, AsyncGenerator, TYPE_CHECKING, Callable, Type, \
-    Literal
+from typing import Optional, Dict, Any, Union, Iterable, Generator, AsyncGenerator, TYPE_CHECKING, Callable, Type
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import itertools
 from pydantic import BaseModel, create_model, Extra, RootModel
