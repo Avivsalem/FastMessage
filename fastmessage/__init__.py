@@ -1,5 +1,6 @@
 from .common import (
     CustomOutput,
+    OtherMethodOutput,
     InputDeviceName,
     MultipleReturnValues,
 )

@@ -26,17 +26,17 @@ $ pip install fastmessage
 ## Examples
 
 ```python
-from fastmessage import FastMessage
+from fastmessage import FastMessage, OtherMethodOutput
 from messageflux.iodevices.rabbitmq import RabbitMQInputDeviceManager, RabbitMQOutputDeviceManager
 
 fm = FastMessage()
 
 
-@fm.map(output_device='next_year')  # this sends its outputs to 'next_year' method
+@fm.map()
 def hello(name: str, birthYear: int):
     age = 2023 - birthYear
     print(f'Hello {name}. your age is {age}')
-    return dict(age=age)
+    return OtherMethodOutput(next_year, age=age)  # this sends its output to 'next_year' method
 
 
 @fm.map()
@@ -52,22 +52,20 @@ if __name__ == "__main__":
     output_device_manager = RabbitMQOutputDeviceManager(hosts='my.rabbit.host',
                                                         user='username',
                                                         password='password')
-    
+
     service = fm.create_service(input_device_manager=input_device_manager,
-                                output_device_manager=output_device_manager)    
+                                output_device_manager=output_device_manager)
     service.start()  # this runs the PipelineService and blocks
 ```
 
-This example shows two methods: ```hello``` and ```next_year```, each listening on its own queue 
+This example shows two methods: ```hello``` and ```next_year```, each listening on its own queue
 (with the same name)
 
-the ```hello``` method is decorated with ```output_device='next_year'``` which means its output is directed to the 
-```next_year``` device (and the corrosponding method)
-
-the ```__main__``` creates an input and output device managers (```RabbitMQ``` in this case), and starts the service 
+the ```__main__``` creates an input and output device managers (```RabbitMQ``` in this case), and starts the service
 with these devices.
 
 every message that is sent to the ```hello``` queue should have the following format:
+
 ```json
 {
   "name": "john",
@@ -76,6 +74,7 @@ every message that is sent to the ```hello``` queue should have the following fo
 ```
 
 in that case the process will print (in 2023...):
+
 ```
 Hello john. your age is 24
 next year you will be 25
