@@ -25,7 +25,7 @@ class FastMessage(PipelineHandlerBase):
                  default_output_device: Optional[str] = None,
                  validation_error_handler: Optional[Callable[
                      [InputDevice, MessageBundle, ValidationError],
-                     Optional[Union[PipelineResult, List[PipelineResult]]]]] = None):
+                     Optional[Union[PipelineResult, Iterable[PipelineResult]]]]] = None):
         """
 
         :param default_output_device: an optional default output device to send callback results to,

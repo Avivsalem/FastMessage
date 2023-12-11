@@ -26,22 +26,22 @@ fm = FastMessage(default_output_device='output')
 
 @fm.map()
 def do_something(x: int, y: str):
-  pass  # do something with x and y
+    pass  # do something with x and y
 
 
 @fm.map()
 async def do_something_async(x: int, y: str):
-  pass  # do something with x and y asynchronously
+    pass  # do something with x and y asynchronously
 
 
 class SomeModel(BaseModel):
-  x: int
-  y: str
+    x: int
+    y: str
 
 
 @fm.map()
 def do_something_else(m: SomeModel, a: int):
-  return "some_value"  # do somthing with m and a
+    return "some_value"  # do somthing with m and a
 
 ```
 
@@ -104,8 +104,9 @@ There are special types which you can annotate the arguments for the callback wi
   from. useful for registering the same callback for several input devices
 * ```Message``` - arguments annotated with this type will receive the raw message which came from the device
 * ```MessageBundle``` - arguments annotated with this type will receive the complete MessageBundle (with device headers)
-* ```MethodValidator``` - argument of this type, will receive an object that can help validate return values for other methods
-Notice that arguments annotated with these types MUST NOT have default values (Since they always have values).
+* ```MethodValidator``` - argument of this type, will receive an object that can help validate return values for other
+  methods
+  Notice that arguments annotated with these types MUST NOT have default values (Since they always have values).
 
 ```python
 
@@ -118,20 +119,22 @@ fm = FastMessage()
 
 @fm.map(input_device='some_queue')
 def do_something(i: InputDeviceName, m: Message, mb: MessageBundle, x: int):
-  # i will be 'some_queue'
-  # m will be the message that arrived
-  # mb will be the MessageBundle that arrived
-  # x will be the serialized value of the message
-  pass  # do something
+    # i will be 'some_queue'
+    # m will be the message that arrived
+    # mb will be the MessageBundle that arrived
+    # x will be the serialized value of the message
+    pass  # do something
 
 
 @fm.map()
 def func1(mv: MethodValidator):
-    yield mv.validate_and_return(func2, x=3, y="hello") # this will succeed
-    yield mv.validate_and_return(func2, x=4) # this will raise MethodValidationError because y param is required but missing
+    yield mv.validate_and_return(func2, x=3, y="hello")  # this will succeed
+    yield mv.validate_and_return(func2,
+                                 x=4)  # this will raise MethodValidationError because y param is required but missing
+
 
 @fm.map()
-def func2(x:int, y:str):
+def func2(x: int, y: str):
     pass
 ```
 
@@ -178,7 +181,31 @@ fm = FastMessage()
 
 @fm.map(input_device='some_queue', output_device='default_output_device')
 def do_something(x: int):
-  return CustomOutput(value=1,
-                      output_device='other_output_device')  # this will send the value 1 to 'other_output_device' instead of the default
+    return CustomOutput(value=1,
+                        output_device='other_output_device')  # this will send the value 1 to 'other_output_device' instead of the default
 ```
 
+### Returning Result to another method
+
+You can make the function return a result to another mapped method, while validating its values BEFORE sending the
+output to the destination queue
+
+you do this by returning ```OtherMethodOutput``` class, that receives the callable as its first parameter, and the
+arguments as kwargs:
+
+```python
+from fastmessage import FastMessage, OtherMethodOutput
+
+fm = FastMessage()
+
+
+@fm.map()
+def func1():
+    yield OtherMethodOutput(func2, x=3, y="hello")  # this will succeed
+    yield OtherMethodOutput(func2, x=4)  # this will raise MethodValidationError because y param is required but missing
+
+
+@fm.map()
+def func2(x: int, y: str):
+    pass
+```
